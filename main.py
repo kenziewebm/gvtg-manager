@@ -78,20 +78,16 @@ class VGPUCreationWizard(tk.Toplevel):
     def get_igpu_pcie_addr(self):
         try:
             lspci = subprocess.check_output(['lspci', '-D', '-nn'], text=True)
-            display = [line for line in lspci.split('\n') if 'Display' in line]
+            display = [line for line in lspci.split('\n') if 'Display' in line or 'VGA' in line]
             pcie_addr = [line.split()[0] for line in display][0]
             return pcie_addr
         except Exception as e:
-            return e
+            messagebox.showerror("Error", f"Failed to get iGPU address!\nPlease report this as a bug!\n{e}")
 
 
     def populate_vgpu_mode_list(self):
         try:
             pcie_addr = self.get_igpu_pcie_addr()
-            if pcie_addr == 0:
-                self.vgpu_mode_list.insert(tk.END, "Failed to get iGPU PCIE addresss:")
-                self.vgpu_mode_list.insert(tk.END, e)
-                return
             basedir = f"/sys/devices/pci0000:00/{pcie_addr}/mdev_supported_types"
 
             modes = os.listdir(basedir)
@@ -206,8 +202,10 @@ class VGPUManager(tk.Tk):
             try:
                 f = open(f"/sys/bus/mdev/devices/{vgpu_name}/remove", "w")
                 f.write("1")
-                f.close
+                f.close()
+                self.update()
                 self.populate_vgpu_list()
+                self.details_text.delete(1.0, tk.END)
             except Exception as e:
                 messagebox.showerror("Error", f"{e}\n(Hint: try running this app as root)")
         else:
